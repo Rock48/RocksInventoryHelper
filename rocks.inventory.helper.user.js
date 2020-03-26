@@ -9,7 +9,7 @@
 // @author       Charles "Rock48" Quigley
 // @match        https://steamcommunity.com/id/*/inventory*
 // @match        https://steamcommunity.com/profiles/*/inventory*
-// @updateURL	 https://github.com/Rock48/RocksInventoryHelper/raw/master/rocks.inventory.helper.js
+// @updateURL	 https://github.com/Rock48/RocksInventoryHelper/raw/master/rocks.inventory.helper.user.js
 // @grant        none
 // ==/UserScript==
 
