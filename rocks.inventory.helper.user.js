@@ -21,7 +21,7 @@
 	document.styleSheets[0].addRule(".selected-for-sale", "outline: solid yellow 2px !important;");
 	document.styleSheets[0].addRule(".rh-header-section", "display: inline-flex; align-items: center; margin: 0 8px;");
 	document.styleSheets[0].addRule(".rh-header-section input[type=checkbox]", "position: relative; top:1px;");
-	document.styleSheets[0].addRule("#sell-all-btns.disabled *", "cursor: default; background-image: none !important; background-color: grey !important;");
+	document.styleSheets[0].addRule("#sell-all-btns.disabled *, #select-all-btn-span.disabled *", "cursor: default; background-image: none !important; background-color: grey !important;");
 	let use_shortcuts = false;
 	const active_inventory_page = document.querySelector("#active_inventory_page");
 	active_inventory_page.insertAdjacentHTML("beforebegin", `
@@ -35,7 +35,10 @@
 			<span class="rh-header-section disabled" id="sell-all-btns">
 				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="qs-all"><span>Quicksell All</span></a>
 				&nbsp;
-				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="list-all"><span>List All</span></a>
+				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="list-all"><span>List All</span></a>	
+			</span>
+			<span class="rh-header-section disabled" id="select-all-btn-span">
+				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="select-all"><span>Select This Page</span></a>	
 			</span>
 		</div>
 	`);
@@ -43,10 +46,13 @@
 	document.querySelector("#select_items").addEventListener("change", e => {
 		selecting_items = e.target.checked;
 		if(!selecting_items) {
+			document.querySelector("#select-all-btn-span").addClassName("disabled");
 			selected_items = {};
 			num_selected_items = 0;
 			document.querySelectorAll(".selected-for-sale").forEach(e => e.removeClassName("selected-for-sale"));
 			document.querySelector("#sell-all-btns").addClassName("disabled");
+		} else {
+			document.querySelector("#select-all-btn-span").removeClassName("disabled");
 		}
 	});
 	function getSellButton(title) {
@@ -134,6 +140,16 @@
 		if(document.querySelector("#sell-all-btns").hasClassName("disabled")) return;
 		sellAllSelected(openListLowest);
 	})
+	document.querySelector("#select-all").addEventListener("click", event => {
+		if(document.querySelector("#select-all-btn-span").hasClassName("disabled")) return;
+		selectAllOnPage();
+	})
+	
+	function selectAllOnPage() {
+		console.log(selecting_items)
+		if(!selecting_items) return;
+		document.querySelectorAll(".inventory_page[style=\"\"] .itemHolder a").forEach(e => e.click())
+	}
 	
 	document.querySelector("#inventories").addEventListener("click", event => {
 		if(!selecting_items) return;
