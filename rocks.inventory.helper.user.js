@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rock's Inventory Helper
 // @namespace    https://moonlightsoftware.net/
-// @version      0.5.1
+// @version      0.5.2
 // @description  Q - Open instant sell dialog
 // @description  L - Open list at lowest price dialog
 // @description  A - Confirm the current open sell dialog
