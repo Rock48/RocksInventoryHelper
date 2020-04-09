@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rock's Inventory Helper
 // @namespace    https://moonlightsoftware.net/
-// @version      0.5.5
+// @version      0.5.6
 // @description  Q - Open instant sell dialog
 // @description  L - Open list at lowest price dialog
 // @description  A - Confirm the current open sell dialog
@@ -38,7 +38,7 @@
 				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="list-all"><span>List All</span></a>	
 			</span>
 			<span class="rh-header-section disabled" id="select-all-btn-span">
-				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="select-all"><span>Select This Page</span></a>	
+				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="select-all"><span>Select/Deselect All</span></a>	
 			</span>
 		</div>
 	`);
@@ -147,14 +147,23 @@
 	
 	function selectAllOnPage() {
 		if(!selecting_items) return;
+		let count_already_selected = 0;
 		document.querySelectorAll("div.inventory_page:not([style=\"display: none;\"]) .itemHolder .item").forEach(e => {
-			if(selected_items[e.id]) return;
+			if(selected_items[e.id]) return count_already_selected++;
 
 			selected_items[e.id] = 1;
 			e.addClassName("selected-for-sale");
 			num_selected_items++;
 			document.querySelector("#sell-all-btns").removeClassName("disabled");
 		})
+		if(count_already_selected >= 25) {
+			document.querySelectorAll("div.inventory_page:not([style=\"display: none;\"]) .itemHolder .item").forEach(e => {
+				e.removeClassName("selected-for-sale");
+				delete selected_items[e.id];
+				num_selected_items--;
+				if(num_selected_items == 0) document.querySelector("#sell-all-btns").addClassName("disabled");
+			});
+		}
 	}
 	
 	document.querySelector("#inventories").addEventListener("click", event => {
