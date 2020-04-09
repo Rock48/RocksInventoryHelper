@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rock's Inventory Helper
 // @namespace    https://moonlightsoftware.net/
-// @version      0.5
+// @version      0.5.1
 // @description  Q - Open instant sell dialog
 // @description  L - Open list at lowest price dialog
 // @description  A - Confirm the current open sell dialog
@@ -106,7 +106,7 @@
 		function sellNext() {
 			if(SellItemDialog.m_bWaitingOnServer) return setTimeout(sellNext, 25);
 			const current_sale = selected_item_ids.shift();
-			if(!current_sale || !selected_items[current_sale]) return;
+			if(!current_sale || !selected_items[current_sale]) return; 
 			const item = document.getElementById(current_sale);
 			item.querySelector("a").click();
 
@@ -148,6 +148,7 @@
 			num_selected_items++;
 		} else {
 			item_element.removeClassName("selected-for-sale");
+			delete selected_items[id];
 			num_selected_items--;
 			if(num_selected_items == 0) document.querySelector("#sell-all-btns").addClassName("disabled");
 		}
