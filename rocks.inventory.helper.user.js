@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rock's Inventory Helper
 // @namespace    https://moonlightsoftware.net/
-// @version      0.5.6
+// @version      0.5.7
 // @description  Q - Open instant sell dialog
 // @description  L - Open list at lowest price dialog
 // @description  A - Confirm the current open sell dialog
@@ -18,10 +18,17 @@
 
 	if(g_ActiveInventory.m_steamid != g_steamID) return;
 
-	document.styleSheets[0].addRule(".selected-for-sale", "outline: solid yellow 2px !important;");
-	document.styleSheets[0].addRule(".rh-header-section", "display: inline-flex; align-items: center; margin: 0 8px;");
-	document.styleSheets[0].addRule(".rh-header-section input[type=checkbox]", "position: relative; top:1px;");
-	document.styleSheets[0].addRule("#sell-all-btns.disabled *, #select-all-btn-span.disabled *", "cursor: default; background-image: none !important; background-color: grey !important;");
+	let sheet = (() => {
+		var style = document.createElement("style");
+		style.appendChild(document.createTextNode(""));
+		document.head.appendChild(style);
+		return style.sheet;
+	})();
+	
+	sheet.addRule(".selected-for-sale", "outline: solid yellow 2px !important;");
+	sheet.addRule(".rh-header-section", "display: inline-flex; align-items: center; margin: 0 8px;");
+	sheet.addRule(".rh-header-section input[type=checkbox]", "position: relative; top:1px;");
+	sheet.addRule("#sell-all-btns.disabled *, #select-all-btn-span.disabled *", "cursor: default; background-image: none !important; background-color: grey !important;");
 	let use_shortcuts = false;
 	const active_inventory_page = document.querySelector("#active_inventory_page");
 	active_inventory_page.insertAdjacentHTML("beforebegin", `
@@ -148,7 +155,7 @@
 	function selectAllOnPage() {
 		if(!selecting_items) return;
 		let count_already_selected = 0;
-		document.querySelectorAll("div.inventory_page:not([style=\"display: none;\"]) .itemHolder .item").forEach(e => {
+		document.querySelectorAll(`div.inventory_page:not([style="display: none;"]) .itemHolder .item.app${g_ActiveInventory.appid}`).forEach(e => {
 			if(selected_items[e.id]) return count_already_selected++;
 
 			selected_items[e.id] = 1;
@@ -157,7 +164,7 @@
 			document.querySelector("#sell-all-btns").removeClassName("disabled");
 		})
 		if(count_already_selected >= 25) {
-			document.querySelectorAll("div.inventory_page:not([style=\"display: none;\"]) .itemHolder .item").forEach(e => {
+			document.querySelectorAll(`div.inventory_page:not([style="display: none;"]) .itemHolder .item.app${g_ActiveInventory.appid}`).forEach(e => {
 				e.removeClassName("selected-for-sale");
 				delete selected_items[e.id];
 				num_selected_items--;
