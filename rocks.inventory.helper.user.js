@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rock's Inventory Helper
 // @namespace    https://moonlightsoftware.net/
-// @version      0.5.2
+// @version      0.5.3
 // @description  Q - Open instant sell dialog
 // @description  L - Open list at lowest price dialog
 // @description  A - Confirm the current open sell dialog
@@ -146,7 +146,6 @@
 	})
 	
 	function selectAllOnPage() {
-		console.log(selecting_items)
 		if(!selecting_items) return;
 		document.querySelectorAll(".inventory_page[style=\"\"] .itemHolder a").forEach(e => e.click())
 	}
