@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Rock's Inventory Helper
 // @namespace    https://moonlightsoftware.net/
-// @version      0.5.7
+// @version      0.6.0
 // @description  Q - Open instant sell dialog
 // @description  L - Open list at lowest price dialog
 // @description  A - Confirm the current open sell dialog
@@ -26,6 +26,9 @@
 	})();
 	
 	sheet.addRule(".selected-for-sale", "outline: solid yellow 2px !important;");
+	sheet.addRule(".currently-selling", "outline: solid purple 2px !important;");
+	sheet.addRule(".sale-error", "outline: solid red 2px !important;");
+	sheet.addRule(".sold", "outline: solid green 2px !important;");
 	sheet.addRule(".rh-header-section", "display: inline-flex; align-items: center; margin: 0 8px;");
 	sheet.addRule(".rh-header-section input[type=checkbox]", "position: relative; top:1px;");
 	sheet.addRule("#sell-all-btns.disabled *, #select-all-btn-span.disabled *", "cursor: default; background-image: none !important; background-color: grey !important;");
@@ -116,25 +119,99 @@
 
 	function sellAllSelected(sell_function) {
 		const selected_item_ids = Object.keys(selected_items);
+		let total_value_recv = 0;
+		let total_value_buy = 0;
+		let items_sold = {};
 		function sellNext() {
 			if(SellItemDialog.m_bWaitingOnServer) return setTimeout(sellNext, 25);
 			const current_sale = selected_item_ids.shift();
-			if(!current_sale || !selected_items[current_sale]) return; 
-			const item = document.getElementById(current_sale);
-			item.querySelector("a").click();
+			if(!current_sale || !selected_items[current_sale]) {
+				window.gPriceModal = ShowAlertDialog("Sale Complete!", `
+					<div style="font-size: 1.125em; float: right; margin-left: 30px;">
+						Cost To Buyers: <span style="float: right; margin-left: 8px;">$${(total_value_buy / 100).toFixed(2)}</span><br />
+						Amount To Receive: <span style="float: right; margin-left: 8px;">$${(total_value_recv / 100).toFixed(2)}</span>
+					</div>
+					<div style="font-size:1.4em; float: left;">Items Sold</div>
+					<div style="clear: left;"></div>
+					<hr style="background: #acb2b8; border: none; height: 1px; margin-block-end: 1em; margin-inline-start: 0;">
+					<ul style="margin: 0 0 -45px 0; padding-inline-end: 66px; padding-left: 30px;">
+						${ Object.keys(items_sold).map(item_name => `<li>${item_name} ×${items_sold[item_name]}</li>`).join("") }
+					</ul>
+				`);
+
+				const modalElement = window.gPriceModal.m_$Content[0];
+				const content_border = window.gPriceModal.m_$StandardContent[0].parentElement;
+				content_border.style.maxHeight = innerHeight - content_border.offsetTop - 200 + "px";
+
+				modalElement.style.overflow = "hidden";
+				modalElement.style.height = 0;
+				modalElement.style.transition = "height 500ms";
+				modalElement.style.height = content_border.getHeight() + content_border.offsetTop + "px";
+				return setTimeout(() => {
+					window.gPriceModal.AdjustSizing(500);
+				}, 500);
+			}
+			OnLocationChange(null, "#" + current_sale);
+
+			// If the page is already loaded, might as well add the currently selling class before the prices load.
+			let item = document.getElementById(current_sale);
+			if(item) {
+				item.removeClassName("selected-for-sale");
+				item.addClassName("currently-selling");
+			}
 
 			let sell_interval = setInterval(() => {
 				if(!sell_function()) return;
 				clearInterval(sell_interval);
+				
+				item = document.getElementById(current_sale);
+				item.removeClassName("selected-for-sale");
+				item.addClassName("currently-selling");
 
-				let confirm_interval = setInterval(() => {
-					if(!confirmSale()) return;
-					clearInterval(confirm_interval);
+				const item_value_recv = SellItemDialog.GetPriceAsInt();
+				const item_value_buy = SellItemDialog.GetBuyerPriceAsInt();
+				const item_market_name = g_ActiveInventory.selectedItem.description.market_name;
+
+				function checkConfirmed(attempt) {
 					
-					delete selected_items[current_sale];
-					sellNext();
-				}, 50);
-			}, 50)
+					const error_el = document.querySelector("#market_sell_dialog_error");
+					// clear custom error message if exists
+					if(error_el) error_el.innerHTML = error_el.innerHTML.replace(/\<br\> Retrying in.*\/5\)/,"");
+					if(!SellItemDialog.m_bWaitingOnServer && attempt >= 5) {
+						(error_el || {}).innerHTML += "<br> Failed after five retries. Skipping..."
+
+						delete selected_items[current_sale];
+						return setTimeout(() => {
+							SellItemDialog.Dismiss();
+							item.removeClassName("currently-selling");
+							item.addClassName("sale-error");
+							sellNext();
+						}, 1000);
+					}
+					// item should theoretically be listed
+					if(!SellItemDialog.m_bWaitingOnServer && !SellItemDialog.m_bWaitingForUserToConfirm) {
+						total_value_recv += item_value_recv;
+						total_value_buy += item_value_buy;
+						items_sold[item_market_name] = (items_sold[item_market_name] || 0) + 1;
+						item.removeClassName("currently-selling");
+						item.addClassName("sold");
+						delete selected_items[current_sale];
+						return sellNext();
+					}
+					if(!SellItemDialog.m_bWaitingOnServer) {
+						if(SellItemDialog.m_bWaitingForUserToConfirm && attempt > 0) { // Errorrrr
+							(error_el || {}).innerHTML += `<br> Retrying in one second. (Attempt ${attempt++}/5)`
+							return setTimeout(() => {
+								confirmSale();
+								checkConfirmed(attempt);
+							}, 1000);
+						}
+					}
+					return setTimeout(() => checkConfirmed(!attempt ? 1 : attempt), 50);
+				};
+				confirmSale();
+				checkConfirmed(0);
+			}, 50);
 		}
 		sellNext();
 	}
@@ -156,7 +233,8 @@
 		if(!selecting_items) return;
 		let count_already_selected = 0;
 		document.querySelectorAll(`div.inventory_page:not([style="display: none;"]) .itemHolder .item.app${g_ActiveInventory.appid}`).forEach(e => {
-			if(selected_items[e.id]) return count_already_selected++;
+			e.removeClassName("sale-error");
+			if(selected_items[e.id] || e.hasClassName("sold") || !e.rgItem.description.marketable) return count_already_selected++;
 
 			selected_items[e.id] = 1;
 			e.addClassName("selected-for-sale");
@@ -165,7 +243,9 @@
 		})
 		if(count_already_selected >= 25) {
 			document.querySelectorAll(`div.inventory_page:not([style="display: none;"]) .itemHolder .item.app${g_ActiveInventory.appid}`).forEach(e => {
+				if(e.hasClassName("sold")) return;
 				e.removeClassName("selected-for-sale");
+				e.removeClassName("sale-error");
 				delete selected_items[e.id];
 				num_selected_items--;
 				if(num_selected_items == 0) document.querySelector("#sell-all-btns").addClassName("disabled");
@@ -179,6 +259,9 @@
 		if(!event.target.hasClassName("inventory_item_link")) return;
 		const item_element = event.target.parentElement;
 		const id = item_element.id;
+		if(!item_element.rgItem.description.marketable) return;
+		if(item_element.hasClassName("sold")) return;
+		item_element.removeClassName("sale-error");
 		selected_items[id] = !selected_items[id];
 		if(selected_items[id]) {
 			item_element.addClassName("selected-for-sale");
