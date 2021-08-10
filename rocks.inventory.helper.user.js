@@ -46,6 +46,10 @@
 				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="qs-all"><span>Quicksell All</span></a>
 				&nbsp;
 				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="list-all"><span>List All</span></a>	
+				&nbsp;
+				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="to-csv"><span>Print CSV</span></a>	
+				&nbsp;
+				`+/*<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="to-gems"><span>Turn to Gems</span></a>*/`
 			</span>
 			<span class="rh-header-section disabled" id="select-all-btn-span">
 				<a href="javascript:void(0)" class="btn_small btn_blue_white_innerfade" id="select-all"><span>Select/Deselect All</span></a>	
@@ -70,6 +74,11 @@
 		if(!btn || !btn.dataset.price || SellItemDialog.m_bWaitingOnServer || (SellItemDialog.m_modal && SellItemDialog.m_modal.m_bVisible)) return false;
 		return btn;
 	}
+	function getGemsButton(title) {
+		const btn = document.querySelectorAll("a#iteminfo0_item_scrap_link")//document.querySelector(`.inventory_iteminfo[style*="z-index: 1"] .steamdb_quick_sell a[title*="${title}"]`);
+		if(!btn || SellItemDialog.m_bWaitingOnServer || (SellItemDialog.m_modal && SellItemDialog.m_modal.m_bVisible)) return false;
+		return btn;
+	}
     function openQuickSell() {
 		let qs = getSellButton("highest listed buy order price");
         if(!qs && getSellButton("lowest listed sell price")) return openListLowest(); // If there is no buy order, then just use lowest list price
@@ -79,6 +88,10 @@
 		let qs = getSellButton("lowest listed sell price");
 		return qs ? qs.click() || true : false;
     }
+    // function turnToGems() {
+	// 	let qs = getSellButton("lowest listed sell price");
+	// 	return qs ? qs.click() || true : false;
+    // }
     function confirmSale() {
         let ok_btn;
         if(!SellItemDialog.m_bWaitingForUserToConfirm || !(ok_btn = document.querySelector("#market_sell_dialog_ok"))) return false;
@@ -133,14 +146,18 @@
 					</div>
 					<div style="font-size:1.4em; float: left;">Items Sold</div>
 					<div style="clear: left;"></div>
-					<hr style="background: #acb2b8; border: none; height: 1px; margin-block-end: 1em; margin-inline-start: 0;">
+					<hr style="background: #acb2b8; border: none; height: 1px; margin-block-end: 1em; margin-inline-start: 0;" />
 					<ul style="margin: 0 0 -45px 0; padding-inline-end: 66px; padding-left: 30px;">
 						${ Object.keys(items_sold).map(item_name => `<li>${item_name} ×${items_sold[item_name]}</li>`).join("") }
 					</ul>
+					<div style="clear: left;"></div>
 				`);
 
 				const modalElement = window.gPriceModal.m_$Content[0];
-				const content_border = window.gPriceModal.m_$StandardContent[0].parentElement;
+				const content = window.gPriceModal.m_$StandardContent[0];
+				const content_border = content.parentElement;
+				const weirdRandomContainerDiv = content.firstChild;
+				weirdRandomContainerDiv.style.minHeight = "50px";
 				content_border.style.maxHeight = innerHeight - content_border.offsetTop - 200 + "px";
 
 				modalElement.style.overflow = "hidden";
@@ -151,6 +168,8 @@
 					window.gPriceModal.AdjustSizing(500);
 				}, 500);
 			}
+
+			// Select the item
 			OnLocationChange(null, "#" + current_sale);
 
 			// If the page is already loaded, might as well add the currently selling class before the prices load.
@@ -224,6 +243,77 @@
 		if(document.querySelector("#sell-all-btns").hasClassName("disabled")) return;
 		sellAllSelected(openListLowest);
 	})
+	document.querySelector("#to-csv").addEventListener("click", event => {
+		printSelectedAsCSV();
+	})
+	function printSelectedAsCSV() {
+		let selected_item_ids = Object.keys(selected_items);
+		let items = [];
+		function addNext() {
+			
+			const current_item = selected_item_ids.shift();
+
+			
+			if(!current_item || !selected_items[current_item]) {
+				let items_csv = "";
+
+				// Old items first!
+				items.reverse();
+
+				for(let item of items) {
+					items_csv += `"${item.item_name}","${item.skin_name}","${item.wear}","${item.rarity}","${item.stattrak}","${item.item_case}","${item.float}"\r\n`
+				}
+
+				console.log(items_csv);
+
+				return;
+			}
+
+			OnLocationChange(null, "#" + current_item);
+
+			const selected_item = g_ActiveInventory.selectedItem;
+			const item_element = selected_item.homeElement;
+			const float_element = item_element.querySelector('.csgofloat-itemfloat');
+			const description = selected_item.description;
+
+			let item_name = description.market_hash_name.replace(/ *\([^)]*\) */, "");
+			let skin_name = item_name.match(/ *\|\ (.*)*/) ? item_name.match(/ *\|\ (.*)*/)[1] : "";
+			item_name = item_name.replace(" | " + skin_name, "");
+			let rarity;
+			if(description.market_hash_name.includes("★")) {
+				rarity = "Knife"
+			} else {
+				rarity = ((description.tags || []).find(tag => tag.category == "Rarity") || {localized_tag_name: "N/A"}).localized_tag_name.replace(" Grade", "");
+			}
+			let stattrak = item_name.includes("StatTrak") ? "Yes" : "No"
+			item_name = item_name.replace("StatTrak™ ", "");
+
+			let itemset_tag_name = ((description.tags || []).find(tag => tag.category == "ItemSet") || {localized_tag_name: "The N/A Collection"}).localized_tag_name;
+		
+			let tag_match = itemset_tag_name.match(/The (.*) Collection/);
+			
+			let item_case = "N/A Case";
+
+			if(tag_match) item_case = tag_match[1] + " Case";
+
+			items.push({
+				item_name,
+				skin_name,
+				wear: (description.market_hash_name.match(/ *\(([^)]*)\) *$/) || ["",""])[1],
+				rarity,
+				stattrak,
+				item_case,
+				float: float_element ? float_element.innerText.replace(/ \(#\d+\)/, '') : ''
+			});
+
+			setTimeout(addNext, 50);
+		}
+		addNext();
+	}
+	// document.querySelector("#to-gems").addEventListener("click", event => {
+	// 	if(document.querySelector("#sell-all-btns").hasClassName("disabled")) return;
+	// 	sellAllSelected(turnToGems);
+	// })
 	document.querySelector("#select-all").addEventListener("click", event => {
 		if(document.querySelector("#select-all-btn-span").hasClassName("disabled")) return;
 		selectAllOnPage();
